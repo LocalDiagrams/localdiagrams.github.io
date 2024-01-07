@@ -2,31 +2,34 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
+<meta name="description" content="Scripts are NEVER sent to a server. Unlike WebSequenceDiagrams, all data is processed on your local device. Easier than setting up a PlantUML server.">
 <head>
-<title>Local Sequence Diagrams</title>
+<title>Local Sequence Diagrams - An alternative to WebSequenceDiagrams</title>
 <style>
 body {
   font-family: system-ui, Roboto, "Helvetica Neue", "Segoe UI", Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
 }
 #header {
-    background-color: #51437b;
-    color: #eee;
-    height:50px;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    justify-content: space-between;
+  background-color: #51437b;
+  color: #eee;
+  height: 50px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
 }
 #header #left-side {
   font-weight:100;
   font-size: 18pt;
   padding: 10px 20px;
+  display: flex;
+  align-items: center;
 }
 #header #right-side a {
-    color: #bbf;
-    padding: 20px;
+  color: #bbf;
+  padding: 20px;
 }
 #header #right-side {
   font-weight:100;
@@ -36,27 +39,49 @@ body {
   justify-content: center;
   align-items: center;
 }
+
 #scriptContent, #diagramTarget {
-    background-color: #555;
-    position: absolute;
-    overflow: scroll;
-    top: 50px;
-    bottom: 0;
-    padding: 20px;
+  background-color: #555;
+  position: absolute;
+  overflow: scroll;
+  top: 50px;
+  bottom: 0;
+  padding: 20px;
 }
 #scriptContent {
-    color: white;
-    left: 0;
-    width: 40%;
-    border: none;
+  color: white;
+  left: 0;
+  width: 40%;
+  border: none;
   outline: none;
   resize: none;
 }
 #diagramTarget {
-    background-color: #333;
-    right: 0;
-    left: 40%;
+  background-color: #333;
+  right: 0;
+  left: 40%;
 }
+
+@media only screen and (max-width: 600px) {
+  #header {
+    height: 30px;
+  }
+  #header #left-side {
+    font-size: 12px;
+  }
+  #header #right-side {
+    font-size: 9px;
+  }
+  #header #right-side a {
+    padding: 5px;
+  }
+
+  #scriptContent, #diagramTarget {
+    top: 30px;
+    padding: 1px;
+  }
+}
+
 .splitter:hover {
   cursor: move;
 }
@@ -898,40 +923,47 @@ function makeResizable(div1, div2) {
   splitter.style.backgroundColor = "rgba(0, 0, 0, 0.12)";
 
   // Splitter move beginning
-  splitter.addEventListener("mousedown", function(e) {
+  function startResize(e) {
     e.preventDefault();
 
     // Set a flag to indicate that the splitter is being dragged
-    // and store the initial mouse and splitter positions
+    // and store the initial mouse/touch and splitter positions
     splitter.resizeInProgress = true;
-    splitter.startMouseClientX = e.clientX;
+    splitter.startMouseClientX = e.clientX || e.touches[0].clientX;
     splitter.startLeft = parseInt(splitter.style.left, 10);
-  });
+  }
+  splitter.addEventListener("mousedown", startResize);
+  splitter.addEventListener("touchstart", startResize);
 
   // Splitter move event
-  document.body.addEventListener("mousemove", function(e) {
+  function moveResize(e) {
     if (splitter.resizeInProgress) {
 
-      // Calculate the new position of the splitter based on the mouse movement
-      let delta = e.clientX - splitter.startMouseClientX;
+      // Calculate the new position of the splitter based on the mouse/touch movement
+      let delta = (e.clientX || e.touches[0].clientX) - splitter.startMouseClientX;
       let newLeft = splitter.startLeft + delta;
+      let widthCorrection = e.clientX ? -10 : 0;
 
       // Update the style of the splitter and the divs
       splitter.style.left = newLeft + "px";
-      div1.style.width = (newLeft - div1.offsetLeft - 10) + "px";
+      div1.style.width = (newLeft - div1.offsetLeft + widthCorrection) + "px";
       div2.style.left = newLeft + "px";
     }
-  });
+  }
+  document.body.addEventListener("mousemove", moveResize);
+  document.body.addEventListener("touchmove", moveResize);
 
-  // splitter move complete
-  document.body.addEventListener("mouseup", function(e) {
+  // Splitter move complete
+  function endResize(e) {
     // Reset the flags if the splitter was actively being moved
     if (splitter.resizeInProgress) {
       splitter.resizeInProgress = false;
       splitter.startMouseClientX = null;
       splitter.startLeft = null;
     }
-  });
+  }
+  document.body.addEventListener("mouseup", endResize);
+  document.body.addEventListener("touchend", endResize);
 }
 
 let s = document.getElementById("scriptContent");
