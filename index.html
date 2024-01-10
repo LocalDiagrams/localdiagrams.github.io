@@ -55,6 +55,8 @@ body {
   border: none;
   outline: none;
   resize: none;
+  border-radius: 0;
+  -webkit-appearance: none;
 }
 #diagramTarget {
   background-color: #333;
@@ -85,6 +87,7 @@ body {
 .splitter:hover {
   cursor: move;
 }
+
 ::-webkit-scrollbar {
   width: 12px;
   height: 12px;
@@ -96,13 +99,41 @@ body {
 ::-webkit-scrollbar-corner {
   background-color: transparent;
 }
+
+dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 260px;
+  border: 1px solid black;
+  padding: 40px;
+  background-color: #979797;
+  z-index: 100;
+}
+dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+dialog button.alt-color {
+  background-color: #bbb;
+}
+dialog button {
+  margin-top: 10px;
+  font-size: 18pt;
+  padding: 10px 20px;
+  border: solid 3px;
+  border-radius: 10px;
+}
+
 </style>
 </head>
 <body>
+
 <div id="header">
-    <div id="left-side">LocalSequenceDiagrams</div>
-    <div id="right-side"><a href="#">Why Local?</a><a href="#">GitHub</a></div>
+<div id="left-side">LocalSequenceDiagrams</div>
+<div id="right-side"><a href="#" id="copyButton">COPY</a><a href="https://github.com/LocalDiagrams/LocalSequenceDiagrams#whylocal">Why Local?</a><a href="https://github.com/LocalDiagrams/LocalSequenceDiagrams">GitHub</a></div>
 </div>
+
 <textarea id="scriptContent" spellcheck="false" oninput="updateDiagram()">
 actor string1 as L
 participant str2
@@ -129,8 +160,15 @@ else not sure
     string1->String3: last one to 3
 end
 </textarea>
-<div id="diagramTarget">
-</div>
+
+<div id="diagramTarget"></div>
+
+<dialog id="copyDialog">
+  <button id="copyDialogPngBtn">Copy PNG</button>
+  <button id="copyDialogSvgBtn">Copy SVG</button>
+  <button id="copyDialogTextBtn">Copy Script Text</button>
+  <button id="copyDialogCloseBtn" class="alt-color">Cancel</button>
+</dialog>
 
 <script>
 
@@ -180,11 +218,17 @@ class LocalSequenceDiagrams {
     this.padding = 10;
   }
 
-  renderToDom(script, domTarget) {
+  scriptToSvgImage(script) {
+    const svgString = this.scriptToSvgText(script);
+    const svgImage = new Image();
+    svgImage.src = "data:image/svg+xml," + encodeURIComponent(svgString);
+    return svgImage;
+  }
+
+  scriptToSvgText(script) {
     const { actors, events } = this.parseScriptToArrays(script);
     const { width, height } = this.calculatePlacements(actors, events);
-    const svgString = this.renderSvgElements(actors, events, width, height);
-    this.appendSvgToDom(svgString, domTarget);
+    return this.renderSvgElements(actors, events, width, height);
   }
 
   parseScriptToArrays(script) {
@@ -894,12 +938,6 @@ class LocalSequenceDiagrams {
     group.appendChild(text);
     return group;
   }
-
-  appendSvgToDom(svgString, el) {
-    const svgImage = new Image();
-    svgImage.src = "data:image/svg+xml," + encodeURIComponent(svgString);
-    el.appendChild(svgImage);
-  }
 }
 
 
@@ -968,15 +1006,75 @@ function makeResizable(div1, div2) {
 
 let s = document.getElementById("scriptContent");
 let d = document.getElementById("diagramTarget");
+let seqDiagram = new LocalSequenceDiagrams("#fff","#000");
 
-function updateDiagram(){
-    d.innerHTML = "";
-    new LocalSequenceDiagrams("#fff","#000").renderToDom(s.value, d);
+function updateDiagram() {
+    const script = s.value;
+
+    d.innerHTML = "";  // clear the existing image (if present)
+    d.appendChild(seqDiagram.scriptToSvgImage(script));
 }
 
 updateDiagram();
 
 makeResizable(s, d);
+
+
+const copyDialog = document.querySelector('#copyDialog');
+
+document.querySelector('#copyButton').addEventListener('click', () => {
+  copyDialog.showModal();
+});
+
+document.querySelector('#copyDialogCloseBtn').addEventListener('click', () => {
+  copyDialog.close();
+});
+
+document.querySelector('#copyDialogPngBtn').addEventListener('click', () => {
+    const script = s.value;
+    const svgImage = seqDiagram.scriptToSvgImage(script);
+
+    // Temporarily add a drawing canvas to the document
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+
+    canvas.width = svgImage.width;
+    canvas.height = svgImage.height;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(svgImage, 0, 0);
+
+    canvas.toBlob(b =>
+        navigator.clipboard.write([
+            new ClipboardItem({'image/png': b}),
+        ]).then(x => {
+            copyDialog.close();
+            alert('Copied!');
+        }),
+        'image/png');
+
+    // Remove the temporary canvas from the document
+    document.body.removeChild(canvas);
+});
+
+document.querySelector('#copyDialogSvgBtn').addEventListener('click', () => {
+    const script = s.value;
+    const svgString = seqDiagram.scriptToSvgText(script);
+
+    navigator.clipboard.writeText(svgString).then(x => {
+        copyDialog.close();
+        alert('Copied!');
+    });
+});
+
+document.querySelector('#copyDialogTextBtn').addEventListener('click', () => {
+    const script = s.value;
+
+    navigator.clipboard.writeText(script).then(x => {
+        copyDialog.close();
+        alert('Copied!');
+    });
+});
 
 </script>
 </body>
